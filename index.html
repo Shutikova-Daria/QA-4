@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Адмін-панель товарів</title>
+<link rel="stylesheet" href="style.css">
+
+</head>
+<body>
+<h2>Адміністративна панель товарів</h2>
+
+<form id="productForm">
+  <input type="hidden" id="id">
+  <label>Назва товару:</label>
+  <input id="name" required>
+  <label>Опис:</label>
+  <textarea id="description"></textarea>
+  <label>Ціна:</label>
+  <input id="price" type="number" step="0.01" required>
+  <label>Дата додавання:</label>
+  <input id="date_added" type="date" required>
+  <button type="submit">Зберегти</button>
+</form>
+
+<hr>
+
+<table>
+  <thead>
+    <tr>
+      <th>Назва</th>
+      <th>Опис</th>
+      <th>Дата</th>
+      <th>Ціна</th>
+      <th>Дії</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+
+<script>
+let products = [];
+
+function loadProducts() {
+  fetch('api.php?action=getProducts')
+    .then(res => res.json())
+    .then(data => {
+      products = data;
+      autoSort(); 
+      render();
+    });
+}
+
+function autoSort() {
+  products.sort((a, b) => new Date(b.date_added) - new Date(a.date_added));
+  products.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function render() {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = products.map(p => `
+    <tr>
+      <td>${p.name}</td>
+      <td>${p.description}</td>
+      <td>${p.date_added}</td>
+      <td>${p.price}</td>
+      <td>
+        <button onclick="edit(${p.id})">✏️</button>
+        <button onclick="del(${p.id})">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('productForm').onsubmit = e => {
+  e.preventDefault();
+  const id = document.getElementById('id').value;
+  const data = new FormData();
+  ['name','description','price','date_added'].forEach(f => data.append(f, document.getElementById(f).value));
+  if (id) { data.append('id', id); send('updateProduct', data); }
+  else send('addProduct', data);
+};
+
+function edit(id) {
+  const p = products.find(x => x.id == id);
+  for (let f in p) if (document.getElementById(f)) document.getElementById(f).value = p[f];
+}
+
+function del(id) {
+  if (!confirm('Видалити товар?')) return;
+  const data = new FormData(); data.append('id', id);
+  send('deleteProduct', data);
+}
+
+function send(action, data) {
+  fetch('api.php?action=' + action, {method:'POST', body:data})
+    .then(r => r.text())
+    .then(r => {
+      if (r === 'OK') {
+        loadProducts();  
+      }
+    });
+}
+
+loadProducts();
+</script>
+</body>
+</html>
